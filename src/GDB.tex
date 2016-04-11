@@ -1,0 +1,60 @@
+\documentclass{fennix_plantilla/fennix}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{hyperref}
+
+\definecolor{mygreen}{rgb}{0,0.6,0}
+\definecolor{mygray}{rgb}{0.5,0.5,0.5}
+\definecolor{mymauve}{rgb}{0.58,0,0.82}
+
+\lstset{
+	language=C,
+	numbers=left,
+	backgroundcolor=\color{white},
+	basicstyle=\footnotesize,
+	breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace        
+	breaklines=true,                 % sets automatic line breaking
+	captionpos=b,                    % sets the caption-position to bottom
+	commentstyle=\color{mygreen},    % comment style
+	frame=single,                    % adds a frame around the code
+	keywordstyle=\color{blue},       % keyword style
+	otherkeywords={*,...},            % if you want to add more keywords to the set
+	numbers=left,                    % where to put the line-numbers; possible values are (none, left, right)
+	numbersep=5pt,                   % how far the line-numbers are from the code
+	numberstyle=\tiny\color{mygray}, % the style that is used for the line-numbers
+	rulecolor=\color{black},
+	showstringspaces=false,          % underline spaces within strings only
+	stepnumber=2,                  
+	stringstyle=\color{mymauve},     % string literal style
+	tabsize=2,                       % sets default tabsize to 2 spaces
+	caption=\lstname                   % show the filename of files included with \lstinputlisting; also try caption instead of title
+}
+
+\begin{document}
+\title{Introducción a GDB}
+\author{stakewinner00}
+\date{2016-04-12 -- alpha}
+\maketitle
+\begin{resumen}
+En este texto se estudiara como depurar un programa usando GDB. Se explicara tanto desde el punto de vista de un programador, como el de un hacker. También se explicarán métodos usado para proteger un binario de ser analizado con GDB.
+\end{resumen}
+
+\begin{requisitos}
+\begin{itemize}
+\item Entender lenguaje ensamblador x86
+\item Entender códigos en C/C++
+\item Tener instalado GDB
+\item Tener instalado GCC
+\end{itemize}
+\end{requisitos}
+
+%\input{intro}
+%\input{primeros_pasos}
+%\input{iniciando_gdb}
+%\input{puntos_de_parada}
+
+\begin{colabs}
+stakewinner00 : stakewinner00@mykolab.com
+\end{colabs}
+
+\end{document}

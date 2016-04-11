@@ -1,0 +1,3 @@
+[submodule "src/fennix_plantilla"]
+	path = src/fennix_plantilla
+	url = https://github.com/HackXCrack/fennix_plantilla
