@@ -1,0 +1,295 @@
+\section{Primeros pasos}
+\emph{Nota: Los códigos fuente que se usaran están en la carpeta ''ejemplos/<capítulo>''. }\\
+En este capítulo haremos un repaso sobre que son y como colocar, breakpoints, como ver los registros, leer el stack, imprimir variables, y como configurar GDB. En resumen, un hello world en GDB
+
+
+\subsection{Hello world GDB}
+Una vez ya tengamos instalado GCC y GDB procederemos a compilar y analizar un simple Hello World. \lstinputlisting[language=C]{ejemplos/2/hello.c}
+Como se ve el programa solo imprime "Hello world GDB" por pantalla. \\
+Compilemos el código usando gcc, \textbf{gcc hello.c -ggdb -o hello}. La opción o flag \emph{-ggdb} es importante ya que generara los \emph{debugging symbols}\\
+Una vez compilado debemos abrir este ejecutable con GDB. Para hacerlo podemos especificar el nombre como un parámetro, o usar el comando \emph{file} seguido del nombre del ejecutable. 
+
+Si ejecutamos el comando \emph{gdb} podremos ver un mensaje introductorio y información sobre la licencia. 
+\begin{verbatim}
+GNU gdb (GDB) 7.8.50.20150104-cvs
+Copyright (C) 2015 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+and "show warranty" for details.
+This GDB was configured as "x86_64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<http://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+<http://www.gnu.org/software/gdb/documentation/>.
+For help, type "help".
+Type "apropos word" to search for commands related to "word".
+(gdb) 
+\end{verbatim}
+
+Una vez ya iniciado GDB podemos usar el comando \emph{file} como se dijo antes. Como vemos a continuación, al ejecutar este comando GDB nos dice \textbf{Reading symbols from hello...done.}, esto es porque antes al compilarlo usamos el flag \emph{-ggdb} que genero la información de depuración (símbolos) que ahora GDB leyó. 
+\begin{verbatim} 
+(gdb) file hello
+Reading symbols from hello...done.
+(gdb)
+\end{verbatim}
+Ahora gracias a la información de depuración y que tenemos el código fuente, podemos ejecutar el comando \emph{list} o \emph{l} (l es una abreviación para list). Este comando nos mostrara el código fuente de 10 en 10 líneas. Para listar rangos concretos se le puede pasar como parámetro la primera y última línea a listar. Por ejemplo para listar entre la 4 y la 6 escribiríamos \emph{l 4,6}. Como vemos a continuación muestra las tres líneas.
+\begin{verbatim}
+(gdb) l 4,6
+4 {
+5   puts("Hello world GDB");
+6 }
+(gdb)
+\end{verbatim}
+Una vez hayamos terminado nuestra primera experiencia con GDB, podemos salir con el comando \emph{quit} (o su versión abreviada \emph{q}) o bien con la combinación Ctrl-D.
+
+\subsection{Jugando con variables}
+A veces puede interesarnos leer una variable, o cambiarle el valor. Por ejemplo para ver el valor apuntado por un puntero. \\Para poder estudiar el estado de las variables en un cierto punto usaremos breakpoints (puntos donde el programa parara). En esta sección solo veremos un ejemplo, más adelante estudiaremos los distintos tipos de breakpoints y algunos de sus usos. \\
+
+\emph{El código que se usara esta en la carpeta \textbf{ejemplos/2/vars.c}}\\
+
+En el código podemos ver que hay dos variables, una es un puntero.\\ \lstinline|unsigned int x,*y;|\\
+También podemos ver que hay 2 llamadas a scanf, la segunda tiene un fallo claro que producirá un fallo de segmentación al intentar escribir en el valor apuntado por y (ya que y no contendrá una dirección válida).\\
+\lstinline|scanf("%d", y);|\\
+Como antes, compilamos con el flag \emph{-ggdb} y lo abrimos con GDB. Ahora lo abriremos en modo ''silencioso'' (sin imprimir información de GDB como la licencia y demás) invocando a GDB con el flag \emph{-q}, \emph{--quiet} o \emph{--silent}. También podemos pasarle el nombre del ejecutable, así lo cargara directamente en GDB sin tener que ejecutar el comando \emph{file}.
+\begin{verbatim}
+$ gdb -q vars
+Reading symbols from vars...done.
+(gdb)
+\end{verbatim}
+Una vez abierto podemos listar el código con el comando \emph{list} como se dijo anteriormente. Vemos que si escribimos \textbf{l} lista las 10 primeras líneas como dijimos, y si volvemos a apretar enter, sin escribir ningún comando, mostrara las 6 líneas restantes. Como se puede deducir, GDB recuerda el último comando y si presionamos enter directamente lo repite.\\
+
+Para poder analizar el valor de la variable \textbf{y} debemos poner un breakpoint antes de ejecutarse la línea 12. Para poner un breakpoint en ese segundo scanf simplemente podemos escribir el comando \emph{break 12} o \emph{b 12}. 
+\begin{verbatim}
+(gdb) b 12
+Breakpoint 1 at 0x4005af: file vars.c, line 12.
+(gdb) 
+\end{verbatim}
+Como vemos nos dice en que posición de memoria coloco el breakpoint, en que archivo y en que línea. También nos dice que es el breakpoint número 1. \\
+Ahora que ya tenemos el breakpoint podemos ejecutar el programa con el comando \emph{run} (o ''r''). Primero se ejecutara el primer scanf, escribimos algún número para que se guarde en la variable \textbf{x} y luego saltara el breakpoint.
+\begin{verbatim}
+(gdb) r
+Starting program: /tmp/codes/1/vars 
+5 
+
+Breakpoint 1, main (argc=1, argv=0x7fffffffeb08) at vars.c:12
+12	  scanf("%d", y);
+(gdb) 
+\end{verbatim}
+Como vemos, GDB nos informa de la función en la que nos encontramos y el valor de los parámetros. En este caso argc vale 1 y argv 0x7fffffffeb08.
+Ahora por ejemplo podemos jugar con el comando \emph{print} (o la abreviación''p'') para mirar el valor de las variables. Por ejemplo si miramos la variable \textbf{x} nos mostrara 5, ya que le acabamos de asignar un valor. 
+\begin{verbatim}
+(gdb) p x
+$1 = 5
+(gdb) p y
+$2 = (unsigned int *) 0x0
+(gdb)
+\end{verbatim}
+Como vemos \textbf{x} vale 5 y \textbf{y} vale 0. En este caso en el siguiente scanf se producirá un error al intentar acceder a la posición 0. \\ Para que no diera fallo de segmentación podríamos jugar a modificar el valor de \textbf{y} y asignarle la dirección de \textbf{x}. De esta forma sobre-escribiremos el valor de \textbf{x}. \\ Para modificar un valor a una variable podemos usar el comando \emph{set var}.
+\begin{verbatim}
+(gdb) p &x
+$3 = (unsigned int *) 0x7fffffffea14
+(gdb) set var y= 0x7fffffffea14
+(gdb) p y
+$4 = (unsigned int *) 0x7fffffffea14
+(gdb) p *y
+$5 = 5
+(gdb)
+\end{verbatim}
+Como vemos simplemente hicimos que \textbf{y} apuntara al valor de \textbf{x}.
+Ahora ya podríamos usar el comando \emph{continue} (o su abreviación ''c'') para seguir con le ejecución.
+\begin{verbatim}
+(gdb) c
+Continuing.
+2   
+Suma: 4
+[Inferior 1 (process 28169) exited normally]
+(gdb) 
+\end{verbatim}
+Como vemos le dimos el valor 2 al segundo scanf sobre-escribiendo \textbf{x}, por tanto la suma es 4. GDB ya nos dice que el programa finalizo normalmente con el PID (ID del proceso) 28169.\\
+
+Otra forma más ''elegante'' de corregir temporalmente este error podría ser reservar memoria para \textbf{y}. GDB permite hacer llamadas a funciones como malloc. Así que simplemente podríamos llamar a malloc(4) y modificar la variable \textbf{y} para que apunte a esa dirección.
+\begin{verbatim}
+(gdb) call malloc(4)
+$1 = 6295568
+(gdb) p y
+$2 = (unsigned int *) 0x0
+(gdb) set var y = 6295568
+(gdb) p *y
+$3 = 0
+(gdb) c
+Continuing.
+2
+Suma: 7
+[Inferior 1 (process 29501) exited normally]
+(gdb) 
+\end{verbatim}
+Como vemos al principio \textbf{y} no apunta a nada y luego modificamos su valor por la dirección devuelta por malloc. Como vemos la memoria que reservo malloc contiene un 0. Continuamos con la ejecución y escribimos un 2 en \textbf{*y}. Ahora sí que suma el primer 5 introducido en \textbf{x} más el 2 de \textbf{*y}.
+
+
+\subsection{Modificando los registros}
+En esta sección veremos un ejemplo de como podemos leer y modificar registros para que ejecute una función que en teoría no debería ejecutarse.\\
+
+\emph{El código que se usara esta en \textbf{ejemplos/2/registros.c}}\\
+
+Una vez compilemos y carguemos el ejecutable en GDB ponemos un breakpoint en la función main y le damos run.
+\begin{verbatim}
+(gdb) break main
+Breakpoint 1 at 0x400520: file registros.c, line 9.
+(gdb) r
+Starting program: /tmp/codes/1/registros 
+
+Breakpoint 1, main () at registros.c:9
+9	{}
+(gdb) 
+\end{verbatim}
+
+Para desensamblar cerca de la posición actual escribiremos el comando \emph{disassemble} o su abreviación \emph{disas}.
+\begin{verbatim}
+(gdb) disas
+Dump of assembler code for function main:
+0x0000000000400517 <+0>:	push   %rbp
+0x0000000000400518 <+1>:	mov    %rsp,%rbp
+0x000000000040051b <+4>:	mov    $0x0,%eax
+=> 0x0000000000400520 <+9>:	pop    %rbp
+0x0000000000400521 <+10>:	retq   
+End of assembler dump.
+(gdb) 
+\end{verbatim}
+Como vemos nos indica con \textbf{=>} la dirección a la que apunta el registro EIP (o RIP en x86-64). Como vemos el desensamblado esta con la sintaxis at\&t y no de intel, cuando toquemos los archivos de configuración de GDB veremos como podemos cambiarlo de forma permanente.
+
+Bien, ahora si queremos que se ejecute la shell debemos cambiar el registro rip para que apunte a la dirección correspondiente. Para eso primero tenemos que saber la dirección de la función shell. Para eso podemos usar los comandos vistos anteriormente.
+\begin{verbatim}
+(gdb) p shell
+$1 = {void (void)} 0x400506 <shell>
+(gdb)
+\end{verbatim}
+Ahora que sabemos donde esta solo tenemos que cambiar el registro rip. Primero miremos como tenemos los registros, para hacerlo existe el comando \texttt{info}. En concreto para ver los registros podemos usar \texttt{info registers } (o \texttt{i r})
+\begin{verbatim}
+(gdb) i r
+rax            0x0	0
+rbx            0x0	0
+rcx            0x0	0
+rdx            0x7fffffffeb08	140737488349960
+rsi            0x7fffffffeaf8	140737488349944
+rdi            0x1	1
+rbp            0x7fffffffea10	0x7fffffffea10
+rsp            0x7fffffffea10	0x7fffffffea10
+r8             0x7ffff7dd6dd0	140737351871952
+r9             0x7ffff7dea6d0	140737351952080
+r10            0x833	2099
+r11            0x7ffff7a57760	140737348204384
+r12            0x400410	4195344
+r13            0x7fffffffeaf0	140737488349936
+r14            0x0	0
+r15            0x0	0
+rip            0x400520	0x400520 <main+9>
+eflags         0x246	[ PF ZF IF ]
+cs             0x33	51
+ss             0x2b	43
+ds             0x0	0
+es             0x0	0
+fs             0x0	0
+gs             0x0	0
+(gdb)
+\end{verbatim}
+Cambiamos el registro rip por la dirección correspondiente.
+\begin{verbatim}
+(gdb) set var $rip = 0x400506
+(gdb) i r rip
+rip            0x400506	0x400506 <shell>
+(gdb)
+\end{verbatim}
+Es importante destacar que los registros van con el símbolo del dolar ''\$'' delante. También se puede apreciar que al comando \texttt{i r} se le puede especificar el registro a imprimir, en este caso rip. Como el comando \texttt{i r} ya se sabe que trata registros no es necesario ponerle el símbolo del dolar. Ahora si continuamos la ejecución con el comando \texttt{continue} tendremos nuestra shell.
+\begin{verbatim}
+(gdb) c
+Continuing.
+$ exit
+[Inferior 1 (process 22319) exited normally]
+(gdb)
+\end{verbatim}
+
+Otra forma más rápida de hacer lo mismo hubiera sido usar el comando \texttt{set var} después de poner el breakpoint y ejecutar.
+\begin{verbatim}
+(gdb) set var $rip = shell
+(gdb) c
+Continuing.
+$
+\end{verbatim}
+
+
+\subsection{Crackeando binarios}
+Una de las aplicaciones que puede tener el uso de un depurador puede ser la de crackear un binario evadiendo la licencia o el serial. En esta sección veremos un ejemplo de laboratorio. \\
+ 
+\emph{El código del binario esta en \textbf{ejemplos/2/crackme.c}}\\
+
+Esta vez compilamos el binario sin los flags de depuración (para hacerlo más realista).\\
+Lo cargamos en GDB como de costumbre y ponemos un breakpoint en la función main, le damos run y desensamblamos. Como vimos por defecto se usa la sintaxis at\&t, para cambiarlo temporalmente podemos escribir \textbf{set disassembly-flavor intel}. \\
+En el código desensamblado se pueden observar 3 llamadas a la función puts. La primera simplemente imprime la string ''Introduzca el serial:'' , las otras dos que se muestran a continuación son más interesantes.
+\begin{verbatim}
+ 0x00000000004005b0 <+74>:	jne    0x4005be <main+88>
+ 0x00000000004005b2 <+76>:	mov    edi,0x40066e
+ 0x00000000004005b7 <+81>:	call   0x400430 <puts@plt>
+ 0x00000000004005bc <+86>:	jmp    0x4005c8 <main+98>
+ 0x00000000004005be <+88>:	mov    edi,0x400677
+ 0x00000000004005c3 <+93>:	call   0x400430 <puts@plt>
+ 0x00000000004005c8 <+98>:	mov    eax,0x0
+\end{verbatim}
+Como vemos depende de una cierta condición imprimirá la string de la dirección \textbf{0x40066e} y sino de la \textbf{0x400677}. Si imprimimos el valor de las dos direcciones podemos ver que la primera dice ''Correcto'' y la segunda ''Incorrecto''.
+\begin{verbatim}
+(gdb) p (char*)0x40066e
+$2 = 0x40066e "Correcto"
+(gdb) p (char*)0x400677
+$3 = 0x400677 "Incorrecto"
+(gdb)
+\end{verbatim}
+\emph{Obsérvese que se puede especificar el tipo, por ejemplo aquí queremos la string, no los valores ASCII}\\
+
+Por tanto una primera solución podría ser nopear el salto condicional para que nunca saltara, así siempre imprimiría el mensaje ''Correcto''. Otra solución más bonita es mirar con que compara y generar el serial correcto.
+Justo después de la llamada a scanf hay una secuencia de comparaciones. Para mirar exactamente que valores mueve pondremos un breakpoint en el scanf.
+\begin{verbatim}
+ 0x0000000000400589 <+35>:	call   0x400460 <__isoc99_scanf@plt>
+\end{verbatim}
+En este caso en la dirección 0x0000000000400589 o lo que es lo mismo, en *main + 35.
+\begin{verbatim}
+ (gdb) b *main+35
+ Breakpoint 2 at 0x400589
+ (gdb) 
+\end{verbatim}
+Una vez se ejecute la instrucción
+\begin{verbatim}
+0x000000000040058e <+40>:	movzx  eax,BYTE PTR [rbp-0x10]
+\end{verbatim}
+podemos mirar que valor tiene el registro EAX. En este caso el serial introducido fue ''123456''. Como vemos si imprimimos el valor de EAX equivale a la primera letra del serial, en este caso un ''1'' como se puede ver.
+\begin{verbatim}
+(gdb) p (char)$rax
+$20 = 49 '1'
+(gdb)
+\end{verbatim}
+Luego vemos que compara esa primera letra y si no es igual a 0x35 (''5'') salta al mensaje de ''Incorrecto''.
+\begin{verbatim}
+0x0000000000400592 <+44>:	cmp    al,0x35
+=> 0x0000000000400594 <+46>:	jne    0x4005be <main+88>
+\end{verbatim}
+\emph{0x4005be es la dirección donde pone el mensaje de ''Incorrecto''.} 
+Ya tenemos el primer carácter del serial, ''5''. \\
+Haciendo lo mismo vemos que la siguiente comparación es contra 0x61 (letra ''a'') y la siguiente 0x37 (''7''), así que los tres primeros caracteres son ''5a7''. 
+Finalmente podemos ver que compara el registro dl y el registro al. 
+\begin{verbatim}
+0x00000000004005a6 <+64>:	movzx  edx,BYTE PTR [rbp-0xd]
+0x00000000004005aa <+68>:	movzx  eax,BYTE PTR [rbp-0xc]
+0x00000000004005ae <+72>:	cmp    dl,al
+0x00000000004005b0 <+74>:	jne    0x4005be <main+88>
+\end{verbatim} 
+El registro \textbf{dl} contendrá la penúltima letra a comparar y \textbf{al} la última, por tanto los dos últimos caracteres del serial tienen que ser los mismos. Así que ''5a700' o ''5a7zz'' serian seriales correctos.
+
+
+\subsection{Obteniendo ayuda}
+Si tenemos alguna duda lo primero que podemos hacer es ejecutar \emph{man gdb}, si queremos un resumen de los comandos podemos ejecutar \emph{gdb --help} o \emph{gdb -h}. Si tenemos dudas más genéricas una vez dentro de GDB el comando \emph{help} puede servir. Sino podemos mirar la documentación de GDB con el comando \emph{info gdb}. \\
+Si no encontramos nada podemos ir a su web oficial \url{https://www.gnu.org/software/gdb/} donde hay información sobre el canal IRC y las listas de correo que también pueden ser de utilidad.\\
+GDB tiene un sistema de auto-completado de comandos con la tecla \textbf{TAB}, suele venir muy bien para los vagos que no quieren escribir mucho o no recuerdan como se escribía un comando.
+
+
+\subsection{Resumen}
+En esta sección vimos unos cuantos ejemplos donde usamos GDB para diferentes tareas. Desde luego aún no sabemos nada sobre GDB pero ya le perdimos el miedo. En las siguientes secciones profundizaremos sobre como usar los comandos mencionados anteriormente y explicaremos algunas nuevas funcionalidades básicas de GDB. 
