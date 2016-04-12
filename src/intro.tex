@@ -1,0 +1,18 @@
+\section{Introducción}
+Los programas a veces no funcionan como esperamos, a veces dan fallos de segmentación, a veces entran en bucles infinitos, a veces acaban consumiendo demasiada memoria o CPU. Cuando nos encontramos en situaciones como estas tenemos varias opciones, o nos quedamos de brazos cruzado, o buscamos por internet para hacer copy paste y esperar que funcione, o si tenemos tiempo, nos dedicamos a ver como funciona el programa por dentro y mirar porque se comporta de esa forma. 
+
+Para facilitarnos la vida existen distintas herramientas que nos aportan información sobre la ejecución de un programa, algunas de ellas sirven para bajar a nivel ensamblador y mirar que esta ejecutando el procesador. Estas herramientas se denominan depuradores ya que se usan para testear y depurar programas.
+
+\subsection{¿Qué es un depurador?}
+Un depurador (o debugger en ingles) es un programa que como dijimos nos permite analizar el comportamiento de un programa. Algunos depuradores, como GDB nos permiten mostrarnos la línea  de código original a alto nivel que se esta ejecutando además de mostrarnos el código ensamblador y el estado de los registros.
+
+\subsection{¿Quién usa los depuradores?}
+Un depurador puede ser usado por cualquier interesado en entender el funcionamiento de un ejecutable. Por ejemplo un programador para saber porque su programa no funciona, un investigador de seguridad que esta buscando vulnerabilidades para crear un exploit como prueba de concepto, o incluso un crackear para analizar como un programa valida un serial y evadir el checkeo. \\ 
+
+Normalmente en el caso del programador es distinto de los otros dos casos ya que dispone del código fuente y puede generar "símbolos de depuración". Esta información ayudara al depurador a reconocer variables, funciones, y en definitiva ''entender'' mejor el ejecutable.\\ En los otros dos casos normalmente no se dispone del código fuente y además la poca información que podría contener normalmente fue cuidadosamente eliminada, se explicara más adelante este tema.
+
+\subsection{¿Por qué usar depuradores?}
+Bien se podrían depurar los programas a base de llamadas a printf() o similar, pero hacer esto tiene una serie de inconvenientes. En primer lugar se tiene menos información que un depurador con el que puedes ver registros y demás, en segundo lugar es más lento ya que tendrás que recompilar varias veces, en tercer lugar el código añadido para depurar puede variar el funcionamiento original del programa.
+
+\subsection{Interfaces gráficas de GDB}
+Existen varias interfaces gráficas para GDB (como DDD), sin embargo en este texto se usara principalmente el modo consola. Las interfaces gráficas de GDB suelen dejar bastante que desear y al final es mucho más didáctico aprender a usarlo por consola. Además habrá ocasiones en los que no sea posible usar las interfaces gráficas.
