@@ -1,0 +1,112 @@
+\section{Iniciando GDB}
+Anteriormente ya vimos como cargar un ejecutable con GDB pero aún no sabemos como podemos debugear un proceso en ejecución, ni que ficheros carga al iniciar, etc. En esta sección veremos otras opciones para depurar un programa.
+
+Los códigos usados estarán en \textbf{ejemplos/3}.
+
+\subsection{Ejecutable}
+Como vimos para cargar un ejecutable en GDB se lo podemos especificar como parámetro. También se puede usar el comando \emph{file} una vez iniciado GDB. 
+
+En estos dos casos el ejecutable es cargado y los símbolos son leídos. Es equivalente a usar el flag \textbf{-se} que lee los símbolos del archivo y lo carga como ejecutable.\\
+El flag \textbf{-s} o \textbf{-symbols} solo lee los símbolos, y el flag \textbf{-e} o \textbf{-exec} especifica que archivo se ejecutara pero no lee los símbolos.
+
+
+\subsection{Proceso en ejecución}
+Otra opción es depurar un proceso en ejecución especificando su PID (identificador de proceso). \\
+Para este ejemplo usaremos el programa \textbf{ejemplos/3/attach.c}. Dicho código imprime su PID, y luego espera algún input, finalmente dice ''Bye'' y sale.
+
+Así que compilamos y ejecutamos el binario, en este caso el PID que nos dice es ''5146''.
+Dejamos el programa esperando el input y en otra consola abrimos GDB donde el primer parámetro es la ruta al ejecutable y el segundo el PID. Por defecto GDB si se le especifica un valor numérico primero comprobara si es un proceso, si no es un proceso probara si es un archivo ''core''.
+\begin{verbatim}
+$ gdb -q attach 5146
+Reading symbols from attach...(no debugging symbols found)...done.
+Attaching to program: /tmp/codes/2/attach, process 5146
+Reading symbols from /lib/x86_64-linux-gnu/libc.so.6...(no debugging symbols found)...done.
+Reading symbols from /lib64/ld-linux-x86-64.so.2...(no debugging symbols found)...done.
+0x00007f26d5f5a8e0 in read () from /lib/x86_64-linux-gnu/libc.so.6
+(gdb) 
+\end{verbatim}
+Como vemos primero lee el ejecutable y luego se une al PID especificado.\\
+Ahora ya podemos trabajar como de costumbre. \\
+
+Obviamente si intentamos debugear un proceso al cual no tenemos permisos nos dará un error. Intentara leer el ejecutable pero no tendrá privilegios necesarios, luego intentara unirse al PID y no podrá, y finalmente mirara si ese valor numérico era un fichero ''core'' en vez de un PID pero tampoco lo encontrara. 
+\begin{verbatim}
+gdb -q ./attach 8619
+./attach: Permiso denegado.
+Attaching to process 8619
+ptrace: Operación no permitida.
+/tmp/ejemplos/3/8619: No existe el fichero o el directorio.
+(gdb)
+\end{verbatim}
+
+Al igual que en el caso anterior, también se puede attachear al programa usando el comando \emph{attach} (previamente abriendo el ejecutable).\\
+
+También se existen las opciones \textbf{-pid} o \textbf{-p} que a parte de unirse (attach) al proceso que se esta ejecutando busca el ejecutable y lo lee.
+
+
+\subsection{Símbolos de depuración}
+Los símbolos de depuración pueden estar en un mismo ejecutable o venir a parte. Estos símbolos normalmente son stripeados (eliminados) del binario para reducir su tamaño y/o hacer más difícil su análisis. \\
+
+Para la prueba usaremos el programa \textbf{ejemplos/3/attach.c} y las herramientas \emph{strip} y \emph{objcopy}, la primera para eliminar estos datos y la segunda para copiarlos a otro fichero..\\
+
+Primero deberemos compilar con el flag \textbf{-ggdb} como de costumbre. Luego usaremos la herramienta \emph{objcopy} para extraer algunos símbolo a otro archivo. Ejecutamos \emph{objcopy --only-keep-debug attach attach.dbg} y nos creara el archivo attach.dbg con los símbolos. Luego eliminamos los símbolos del binario original, para esto podríamos usar la misma herramienta (objcopy) o usar \emph{strip}. Una vez ejecutemos el comando \emph{strip --strip-debug attach} ya tendremos los dos archivos.\\
+Ahora ya podemos abrir el fichero ejecutable por una parte y cargar los símbolos por otra. En GDB hay los flags \textbf{-s} y \textbf{-symbols} y el comando \emph{symbol-file} para cargar los símbolos.\\
+Si intentamos abrir GDB son el ejecutable nos dirá que no encontró los símbolos porque fueron eliminados y copiados en el archivo attach.gdb.\\
+Se podría pensar que un comando como \emph{gdb -q attach -symbols attach.dbg} debería leer los símbolos, pero si nos fijamos no los lee.
+\begin{verbatim}
+gdb -q attach -symbols attach.dbg
+Reading symbols from attach...(no debugging symbols found)...done.
+(gdb)
+\end{verbatim}
+Eso es porque implícitamente intenta leer los símbolos de depuración del ejecutable, pero no los encuentra porque los borramos. Para que no los intente leer del ejecutable podríamos especificar cual es el archivo ejecutable y cual el de los símbolos. Por ejemplo ejecutando \emph{gdb -q -exec attach -symbols attach.dbg}. Como dijimos anteriormente el flag \textbf{-exec} servía para especificar el ejecutable.
+\begin{verbatim}
+gdb -q -exec attach -symbols attach.dbg
+Reading symbols from attach.dbg...done.
+(gdb)
+\end{verbatim}
+Como vemos ya los leyó correctamente.
+
+
+\subsection{Archivo ''core''}
+A veces los errores mortales generaran ''core files''. Esos ficheros guardan una imagen del proceso cuando murió y pueden ser usados por GDB u otras herramientas para analizar dicho ejecutable e intentar averiguar que causo su muerte. \\
+Muchas veces este archivo core es generado automáticamente después de un fallo grave. Si no es generado automáticamente, se puede generar uno con GDB usando el comando \emph{generate-core-file} o \emph{gcore} donde el primer argumento es el nombre del archivo.\\
+
+Para este ejemplo usaremos el code \textbf{ejemplos/3/dead.cpp}. Es un simple programa en C++ que peta porque se intenta desreferenciar un puntero nulo.\\
+Luego usando el flag \textbf{-c} o \textbf{-core} o usando el comando \emph{core-file} leemos el archivo core que en este caso se llama ''dead.core''. 
+\begin{verbatim}
+$ gdb -q dead -core dead.core
+Reading symbols from attach...(no debugging symbols found)...done.
+
+[New LWP 8888]
+Core was generated by `/tmp/ejemplos/3/dead'.
+Program terminated with signal SIGSEGV, Segmentation fault.
+#0  0x00000000004009eb in ?? ()
+(gdb)
+\end{verbatim}
+Como vemos nos indica que se produjo un SIGSEV y en que dirección se produjo.
+Luego podemos desensamblar el punto donde peto y mirar que estaba haciendo.
+\begin{verbatim}
+(gdb) disas main
+Dump of assembler code for function main:
+...
+0x00000000004009d3 <+61>:	mov    rax,QWORD PTR [rbp-0x8]
+0x00000000004009d7 <+65>:	mov    rdi,rax
+0x00000000004009da <+68>:	call   0x400800 <_ZdlPv@plt>
+0x00000000004009df <+73>:	mov    QWORD PTR [rbp-0x8],0x0
+0x00000000004009e7 <+81>:	mov    rax,QWORD PTR [rbp-0x8]
+=> 0x00000000004009eb <+85>:	movzx  eax,BYTE PTR [rax]
+...
+(gdb) 
+\end{verbatim}
+Como vemos primero copió \textbf{0x0} a \textbf{rbp-0x8} y luego lo copió a \textbf{rax}. RAX ahora vale 0, así que al intentar obtener el valor apuntado por RAX peto.
+
+
+\subsection{Archivos de GDB}
+Al iniciar, GDB lee una serie de archivos de configuración que pueden servir, por ejemplo, para que por defecto se use la sintaxis de intel y no la de at\&t
+El archivo \texttt{\$HOME/.gdbinit} se procesa antes que las opciones del comando. Obviamente este archivo de configuración es global para el usuario. \\
+Si el archivo \texttt{gdibit} esta en la carpeta actual, este fichero se leerá después de procesar las opciones del comando, con la excepción de \textbf{-x} y \textbf{-ex} que se procesan después. Depende del caso puede existir otro archivo que se carga antes que los comandos, que los otros ficheros y que es global para todo el sistema. \\
+
+Si preferimos la sintaxis intel podemos escribir el comando que dijimos anteriormente (\emph{set disassembly-flavor intel}) en el archivo \texttt{\$HOME/.gdbinit}. Más tarde veremos como podemos jugar más con estos ficheros.
+
+En caso de que algún momento no queramos que estos archivos sean leídos podemos usar el flag \textbf{-nh} para omitir el archivo \texttt{\$HOME/.gdbinit} o los flags \textbf{-n} o \textbf{-nx} que omiten todos los archivos \texttt{.gdbinit}
+
+
