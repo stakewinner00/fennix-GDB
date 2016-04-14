@@ -1,0 +1,241 @@
+\section{Breakpoints}
+Un breakpoint es una orden que damos al depurador para que nos pause la ejecución en un lugar concreto. GDB soporta 3 tipos de breakpoints, los \emph{breakpoints}, \emph{watchpoints}, y \emph{catchpoints}.\\
+Los \emph{breakpoints} detienen el programa cuando llega a un cierto punto, estos pueden tener condiciones. Los \emph{watchpoints} (o \emph{data breakpoints}) detienen el programa cuando se accede a una cierta zona de datos, por ejemplo cuando una variable es leída y/o escrita. Los \emph{catchpoints} detienen el programa cuando se da un evento concreto, por ejemplo al cargar una librería.\\
+
+Para breakpoint que pongamos GDB le pondrá un número. Este identificador numérico servirá para deshabilitarlos, borrarlos o hacer operaciones con rangos.\\
+Para listar todos los breakpoints se puede usar el comando \emph{info breakpoints}, para listar solo los watchpoints el comando a usar sería \emph{info watchpoints}.
+
+\subsection{Breakpoints} %0xcc
+El código que se usara esta en \textbf{ejemplos/4/breakpoints.c}.
+
+Hay 2 formas de poner estos breakpoints, por software o por hardware. Los ''software breakpoints'' son más flexibles y tienen menos limitaciones que los ''hardware breakpints'' pero son más fáciles de detectar. Las técnicas antid-debug las veremos más adelante.\\
+\emph{NOTA: Si solo decimos ''breakpoints'' nos referimos a software breakpoints}\\
+
+La forma más rápida de colocar un breakpoint es usando el comando \emph{break} tal y como vimos anteriormente. El argumento puede ser el nombre de una función, un número de línea o una dirección. Si no se especifica ningún parámetro pondrá el breakpoint en la siguiente instrucción a ser ejecutada. También se puede especificar una condición, por ejemplo: si quisiéramos poner un breakpoint al llegar a la interacción número 100, y esta compilamos con debugging symbols podríamos hacer algo tan simple como \emph{break *main+21 if i==100}. Si luego imprimimos la información de los breakpoints veremos 
+\begin{verbatim}
+(gdb) i b
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x00000000004004cb in main at breakpoints.c:5
+       stop only if i == 100
+(gdb) 
+\end{verbatim}
+Si no tuviéramos esa información de depuración igualmente podemos usar breakpoints condicionales. Aunque quizás no sea tan intuitivo.
+\begin{verbatim}
+(gdb) disas main
+Dump of assembler code for function main:
+0x00000000004004b6 <+0>:	push   rbp
+0x00000000004004b7 <+1>:	mov    rbp,rsp
+0x00000000004004ba <+4>:	mov    DWORD PTR [rbp-0x4],0x0
+0x00000000004004c1 <+11>:	jmp    0x4004c7 <main+17>
+0x00000000004004c3 <+13>:	add    DWORD PTR [rbp-0x4],0x1
+0x00000000004004c7 <+17>:	cmp    DWORD PTR [rbp-0x4],0x63
+0x00000000004004cb <+21>:	jle    0x4004c3 <main+13>
+0x00000000004004cd <+23>:	mov    eax,0x0
+0x00000000004004d2 <+28>:	pop    rbp
+0x00000000004004d3 <+29>:	ret    
+End of assembler dump.
+(gdb) b *main+21 if *(int*)($rbp-0x4) == 100
+Breakpoint 1 at 0x4004cb
+(gdb) 
+\end{verbatim}
+Como vemos la variable \textbf{i} en la máquina equivale a la dirección (\$rbp-0x4). Puesto que esa dirección apuntara a un int, lo podemos ''castear''. Como no queremos comparar con la dirección sino con el valor al que apunta usamos el operador \textbf{*}. Así que la comparación finalmente queda \emph{*(int*)(\$rbp-0x4) == 100}.\\
+También podemos añadir la condición después de colocar el breakpoint con el comando \emph{condition}. Este comando tiene 2 argumentos, el primero es el número de breakpoint, y el segundo la condición. 
+\begin{verbatim}
+(gdb) break *main+21
+Breakpoint 1 at 0x4004cb
+(gdb) condition 1 *(int*)($rbp-0x4) == 100
+(gdb) i b
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x00000000004004cb <main+21>
+stop only if *(int*)($rbp-0x4) == 100
+(gdb)
+\end{verbatim}
+
+Para colocar breakpoints temporales podemos usar el comando \emph{tbreak}. Este comando funciona igual que el comando break solo que una vez usado se borra automáticamente. \\
+
+El comando \emph{hbreak} permite colocar breakpoints por hardware. Al depender del hardware el número de breakpoints es limitado, y en algunos casos puede que el hardware no lo permite. El uso de este comando es igual que en los dos anteriores casos.\\
+Si el comando \emph{tbreak} eran breakpoints temporales y el comando \emph{hbreak} eran breakpoints por hardware, el comando \emph{thbreak} son breakpoints temporales por hardware.\\
+
+El comando \emph{rbreak} es algo distinto. Este comando permite poner varios breakpoints incondicionales que cumplan un regexp (como el que usa ''grep'').  Por ejemplo para poner un breakpoint en todas las funciones que empiecen por ''str'' se puede usar el comando \emph{rbreak \textasciicircum str}. Si queremos limitar la búsqueda a un archivo podemos especificar el nombre del archivo seguido de dos puntos antes del ''regexp'', por ejemplo \emph{rbreak archivo.c:\textasciicircum str}
+
+
+\subsection{Watchpoints} 
+El código que se usara esta en \textbf{ejemplos/4/watchpoints.c}.
+
+Hay 3 formas de colocar estos watchpoints. Se puede poner un watchpoint al leer una variable, al escribir en ella o en cualquiera los dos casos. GDB intentara colocar hardware breakpoints en vez de software breakpoints para los watchpoints  si es posible.
+
+Para poner un watchpoint cuando una variable sea escrita (modificada) usaremos la orden \emph{watch} seguida de una expresión. Este comando adicionalmente acepta 2 parámetros, el número de hilo y una máscara. El threadnum (número de hilo) sirve para especificar que solo vigile un thread en especifico, este caso solo funciona con los hardware breakpoints. La máscara sirve principalmente para poder poner varios watchpoints de forma simultanea, aunque en este texto no le daremos demasiada importancia ya que los PCs de ir por casa (arquitecturas x86) no lo soportan. \\
+Por ejemplo si tenemos la variable \textbf{i} y a \textbf{x}, que en el inicio valen 0 y ponemos un \emph{watch i*x}
+\begin{verbatim}
+(gdb) watch i*x
+Hardware watchpoint 2: i*x
+(gdb) c
+Continuing.
+123
+Hardware watchpoint 2: i*x
+
+Old value = 0
+New value = 12300
+0x00007ffff7a8f5ea in _IO_vfscanf () from /lib/x86_64-linux-gnu/libc.so.6
+(gdb) 
+\end{verbatim}
+Podemos ver que cuando el programa entra en el scanf y nos pide el nuevo valor de \textbf{x}, si le introducimos algo distinto que cero saltara el watchpoint y nos avisara del valor antiguo y del nuevo. Si hubiéramos ingresado un 0, i*0 sigue siendo 0 y no habría saltado. \\
+También podemos poner watchpoints en valores booleanos, por ejemplo
+\begin{verbatim}
+(gdb) watch i*x==500
+Hardware watchpoint 2: i*x==500
+(gdb) c
+Continuing.
+5
+Hardware watchpoint 2: i*x==500
+
+Old value = 0
+New value = 1
+0x00007ffff7a8f5ea in _IO_vfscanf () from /lib/x86_64-linux-gnu/libc.so.6
+(gdb)
+\end{verbatim}
+Como vemos el valor antiguo era 0 (falso) y el nuevo 1 (cierto) ya que al acabar el bucle la variable \textbf{i} vale 100, y \textbf{x} le cambiamos el valor por 5.\\
+
+Para poner un watchpoint al leer un valor usaremos el comando \emph{rwatch} y para ponerlo en lectura o escritura usaremos \emph{awatch}. El funcionamiento es idéntico al caso anterior. \\
+ 
+El programa de ejemplo que vamos a usar se puede encontrar en \textbf{ejemplos/4/rwatch.cpp} y lo podemos compilar con \textbf{g++ rwatch.cpp -o rwatch -std=c++11 -pthread}. Este programa tiene un error por el que la mayoría de veces se quedara en un bucle infinito.
+
+Una vez tengamos cargado el ejecutable en gDB podemos poner un break en la función main y ir avanzando en la ejecución para ver como se crean los dos threads.
+\begin{verbatim}
+Reading symbols from rwatch...(no debugging symbols found)...done.
+(gdb) tbreak main
+Temporary breakpoint 1 at 0x400ef7
+(gdb) r
+Starting program: /home/david/Soft/Proyectos/fennix-GDB/src/ejemplos/4/rwatch 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Temporary breakpoint 1, 0x0000000000400ef7 in main ()
+(gdb) nexti
+...
+(gdb) 
+[New Thread 0x7ffff7008700 (LWP 10771)]
+....
+(gdb) 
+[New Thread 0x7ffff6807700 (LWP 10815)]
+0x0000000000400f1e in main ()
+(gdb)
+\end{verbatim}
+Aquí vemos dos valores LWP, estos números son identificadores de la tarea. Si ejecutamos el comando \textbf{thread apply all bt} podremos ver el backtrace de todos los threads para mirar que función estaban ejecutando, en este caso de los 3.
+
+\begin{verbatim}
+(gdb) thread apply all bt
+
+Thread 3 (Thread 0x7ffff6807700 (LWP 10815)):
+#0  0x00007ffff73b42bd in nanosleep () from /lib64/libpthread.so.0
+#1  0x000000000040157c in void std::this_thread::sleep_for<long, std::ratio<1l, 1000l> >(std::chrono::duration<long, std::ratio<1l, 1000l> > const&) ()
+#2  0x0000000000400ee1 in f2() ()
+#3  0x0000000000402711 in void std::_Bind_simple<void (*())()>::_M_invoke<>(std::_Index_tuple<>) ()
+#4  0x0000000000402659 in std::_Bind_simple<void (*())()>::operator()() ()
+#5  0x00000000004025d6 in std::thread::_Impl<std::_Bind_simple<void (*())()> >::_M_run() ()
+#6  0x00007ffff7b86980 in execute_native_thread_routine () from /usr/lib/gcc/x86_64-pc-linux-gnu/4.9.3/libstdc++.so.6
+#7  0x00007ffff73ab644 in start_thread () from /lib64/libpthread.so.0
+#8  0x00007ffff70f0edd in clone () from /lib64/libc.so.6
+
+Thread 2 (Thread 0x7ffff7008700 (LWP 10771)):
+#0  0x00007ffff73b42bd in nanosleep () from /lib64/libpthread.so.0
+#1  0x000000000040157c in void std::this_thread::sleep_for<long, std::ratio<1l, 1000l> >(std::chrono::duration<long, std::ratio<1l, 1000l> > const&) ()
+#2  0x0000000000400e9f in f1() ()
+#3  0x0000000000402711 in void std::_Bind_simple<void (*())()>::_M_invoke<>(std::_Index_tuple<>) ()
+#4  0x0000000000402659 in std::_Bind_simple<void (*())()>::operator()() ()
+#5  0x00000000004025d6 in std::thread::_Impl<std::_Bind_simple<void (*())()> >::_M_run() ()
+#6  0x00007ffff7b86980 in execute_native_thread_routine () from /usr/lib/gcc/x86_64-pc-linux-gnu/4.9.3/libstdc++.so.6
+#7  0x00007ffff73ab644 in start_thread () from /lib64/libpthread.so.0
+#8  0x00007ffff70f0edd in clone () from /lib64/libc.so.6
+
+Thread 1 (Thread 0x7ffff7fc7740 (LWP 10688)):
+#0  0x0000000000400f1e in main ()
+(gdb)
+\end{verbatim}
+Luego podríamos poner un breakpoint en la variable \emph{global} en el thread 3 (f2) y ver que se esta leyendo.
+\begin{verbatim}
+(gdb) rwatch global thread 3
+Hardware read watchpoint 2: global
+(gdb) c
+Continuing.
+[Thread 0x7ffff7008700 (LWP 10771) exited]
+[Switching to Thread 0x7ffff6807700 (LWP 10815)]
+
+Thread 3 "rwatch" hit Hardware read watchpoint 2: global
+
+Value = 1
+0x0000000000400ee1 in f2() ()
+(gdb)
+\end{verbatim}
+Como vemos f2 leyó de la variable \emph{global} el valor 1 y esperaba un 2 para finalizar el thread.\\
+
+Para ver los breakpoints colocados podemos usar la orden \emph{info breakpoints} o si solo queremos ver watchpoints \emph{info watchpoints}
+
+
+\subsection{Catchpoints}
+Los catchpoints nos permiten pausar la ejecución al producirse algún evento como una excepción de C++, una llamada a sistema, al cargar una librería dinámica, etc. Por ejemplo con el mismo ejecutable que en el punto anterior podríamos poner un catch al ejecutar la función \emph{clone} (syscall 56).
+\begin{verbatim}
+(gdb) catch syscall 56
+Catchpoint 1 (syscall 56)
+(gdb) r
+Starting program: /home/david/Soft/Proyectos/fennix-GDB/src/ejemplos/4/rwatch 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+
+Catchpoint 1 (call to syscall 56), 0x00007ffff70f0ea1 in clone () from /lib64/libc.so.6
+(gdb) 
+\end{verbatim}
+
+
+\subsection{Eliminando y deshabilitando breakpoints}
+Para eliminar breakpoints de cualquiera de estos 3 tipos podemos usar la orden \emph{delete}. Si no se le especifica ningún argumento borrara todos los breakpoints. Si se le especifica un número \textbf{N}, borrara el breakpoint \textbf{N}. Si se le especifica un rango \textbf{N-M} eliminara todos los breakpoints desde el \textbf{N} hasta el \textbf{M} (\textbf{N} y \textbf{M} incluidos): Por ejemplo, la orden \texttt{delete 5-7} borrara los breakpoints 5, 6 y 7.
+
+Para desactivar los breakpoints en vez de borrarlos existe el comando \texttt{enable} y \texttt{disable}. Como parámetros se les puede especificar un rango o el número del breakpoint. La orden \texttt{enable} también permite activar un breakpoint para que automáticamente tras saltar sea eliminado, deshabilitado, o bien ponerle un contador a un breakpoint para que al cabo de X acciones (aka ''hits'') se desactive. Por ejemplo:
+\begin{verbatim}
+(gdb) disas main
+Dump of assembler code for function main:
+0x0000000000400526 <+0>:	push   rbp
+0x0000000000400527 <+1>:	mov    rbp,rsp
+0x000000000040052a <+4>:	sub    rsp,0x10
+0x000000000040052e <+8>:	mov    DWORD PTR [rbp-0x8],0x0
+0x0000000000400535 <+15>:	mov    DWORD PTR [rbp-0x4],0x0
+0x000000000040053c <+22>:	jmp    0x400542 <main+28>
+0x000000000040053e <+24>:	add    DWORD PTR [rbp-0x4],0x1
+0x0000000000400542 <+28>:	cmp    DWORD PTR [rbp-0x4],0x63
+0x0000000000400546 <+32>:	jle    0x40053e <main+24>
+...
+0x000000000040055e <+56>:	mov    eax,0x0
+0x0000000000400563 <+61>:	leave  
+0x0000000000400564 <+62>:	ret    
+End of assembler dump.
+(gdb) i b
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x0000000000400546 in main at watchpoints.c:6
+2       breakpoint     keep y   0x0000000000400542 in main at watchpoints.c:6
+3       breakpoint     keep y   0x000000000040053e in main at watchpoints.c:6
+(gdb)
+\end{verbatim}
+Podemos poner que el breakpoint 1 se desactive al cabo de 5 ''hits'', el 2 se deshabilite en el primer ''hit'' y el 3 se borre al primer ''hit''.
+\begin{verbatim}
+(gdb) enable once 2
+(gdb) enable delete 3
+(gdb) enable count 5 1
+(gdb) i b
+Num     Type           Disp Enb Address            What
+1       breakpoint     dis  y   0x0000000000400546 in main at watchpoints.c:6
+disable after next 5 hits
+2       breakpoint     dis  y   0x0000000000400542 in main at watchpoints.c:6
+3       breakpoint     del  y   0x000000000040053e in main at watchpoints.c:6
+(gdb) 
+\end{verbatim}
+Si ahora damos run y volvemos a mirar los breakpoints veremos como el 3 ya no existe y el 2 se deshabilito.
+\begin{verbatim}
+(gdb) i b
+Num     Type           Disp Enb Address            What
+1       breakpoint     dis  y   0x0000000000400546 in main at watchpoints.c:6
+breakpoint already hit 1 time
+disable after next 4 hits
+2       breakpoint     dis  n   0x0000000000400542 in main at watchpoints.c:6
+breakpoint already hit 1 time
+(gdb)
+\end{verbatim}
