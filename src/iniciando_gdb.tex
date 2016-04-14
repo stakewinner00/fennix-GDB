@@ -71,7 +71,9 @@ A veces los errores mortales generaran ''core files''. Esos ficheros guardan una
 Muchas veces este archivo core es generado automáticamente después de un fallo grave. Si no es generado automáticamente, se puede generar uno con GDB usando el comando \emph{generate-core-file} o \emph{gcore} donde el primer argumento es el nombre del archivo.\\
 
 Para este ejemplo usaremos el code \textbf{ejemplos/3/dead.cpp}. Es un simple programa en C++ que peta porque se intenta desreferenciar un puntero nulo.\\
-Luego usando el flag \textbf{-c} o \textbf{-core} o usando el comando \emph{core-file} leemos el archivo core que en este caso se llama ''dead.core''. 
+Luego usando el flag \textbf{-c} o \textbf{-core} o usando el comando \emph{core-file} leemos el archivo core que en este caso se llama ''dead.core''. \\
+
+\emph{A veces el sistema operativo no genera estos archivos cores de forma automática, en este caso podemos habilitarlo escribiendo \textbf{ulimit -c unlimited} o si estamos dentro de GDB con el comando \textbf{generate-core-file}}
 \begin{verbatim}
 $ gdb -q dead -core dead.core
 Reading symbols from attach...(no debugging symbols found)...done.
